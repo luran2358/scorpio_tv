@@ -1,147 +1,67 @@
-import { createTestEnv, req, kitty } from "utils"
-
-interface IVod {
-  url: string
-  vod_name: string
-  vod_pic: string
-  vod_remarks: string
-  vod_blurb: string
-}
-
-export default class Ysxqcc implements Handle {
-  getConfig() {
-    return <Iconfig>{
-      id: "ysxq.cc",
-      name: "播剧网",
-      type: 1,
-      nsfw: false,
-      api: "https://www.ysxq.cc",
-    }
-  }
-  async getCategory() {
-    return [
-      { "text": "首页", "id": "/" },
-      { "text": "电影", "id": "1" },
-      { "text": "连续剧", "id": "2" },
-      { "text": "综艺", "id": "3" },
-      { "text": "动漫", "id": "4" },
-      { "text": "短剧", "id": "60" }
-    ]
-  }
-  async getHome() {
-    const cate = env.get<string>("category")
-    const page = env.get("page")
-    if (cate == "/") {
-      const $ = kitty.load(await req(env.baseUrl))
-      const banner = $(".slid-e-list .slid-e-list-box").toArray().map<IMovie>(item => {
-        const cover = $(item).find(".swiper-lazy").attr("data-background") ?? ""
-        const title = $(item).find(".slide-info-title").text().trim()
-        const desc = $(item).find(".slide-info").text().trim()
-        const remark = $(item).find(".slid-e-type").text().trim()
-        const id = $(item).find(".tim-bj.collection").attr("data-id") ?? ""
-        return { title, cover, desc, remark, id }
-      })
-      const table = $(".theme2 .box-width.wow").toArray().map<IHomeContentItem | null>(item => {
-        const title = $(item).find(".title .title-h").text().trim()
-        const isCard = $(item).find(".swiper-wrapper").length > 0
-        const videos = $(item).find(".public-list-box").toArray().map<IMovie>(subItem => {
-          const a = $(subItem).find("a")
-          const title = a.attr("title") ?? ""
-          const id = a.attr("href") ?? ""
-          let cover = env.baseUrl + a.find("img.lazy").attr("data-src")
-          const remark = a.find(".public-list-prb").text().trim()
-          return { id, title, cover, remark }
-        })
-        if (!videos.length) return null
-        return {
-          type: isCard ? "card" : "list",
-          title,
-          videos
-        }
-      }).filter(item => !!item)
-      return <IHomeData>{
-        type: 'complex',
-        data: [
+// 简单数组
+[
+  {/* Iconfig */
+    "id": "ysxq.cc", // 唯一标识(不能重复)
+    "name": "播剧网", // 名称
+    "type": 1, // 源类型(0: maccms, 1: JS/universal)
+    "logo": "", // 图标 URL
+    "desc": "", // 源介绍
+    "nsfw": false, // 是否为 NSFW 内容
+    "status": true, // 源状态(true: 启用, false: 禁用)
+    "api": "https://www.ysxq.cc", // API 地址
+    "extra": { // 额外配置
+      // ========== 通用配置 ==========
+      "jiexiUrl": "", // 视频解析接口 URL (可选，功能待完善)
+      "gfw": false, // 是否需要代理访问 (可选)
+      "searchLimit": 20, // 搜索结果每页数量 (可选，maccms默认20，JS默认10)
+      // ========== maccms 源配置特有分类 (type=0) ==========
+      "category": "", // 分类 ID 或名称 (可选，用于筛选特定分类)
+      // ========== JS 源配置 (type=1) ==========
+      "js": {
+        "category": [
           {
-            type: 'banner',
-            videos: banner,
+            "text": "首页",
+            "id": "/"
           },
-          ...table,
-        ]
-      }
-    }
-    const resp: { list: Array<IVod> } = JSON.parse(await req(`${env.baseUrl}/index.php/ds_api/vod`, {
-      method: "POST",
-      noCache: true,
-      data: {
-        type: +cate,
-        level: 0,
-        by: 'time',
-        page,
-      },
-    }))
-    return resp.list.map<IMovie>(item => {
-      return {
-        id: item.url,
-        title: item.vod_name,
-        cover: env.baseUrl + item.vod_pic,
-        remark: item.vod_remarks.trim(),
-        desc: item.vod_blurb.trim(),
-      }
-    })
-  }
-  async getDetail() {
-    const id = env.get<string>("movieId")
-    const $ = kitty.load(await req(`${env.baseUrl}${id}`))
-    const desc = $("#height_limit").text().trim()
-    const tabs = $(".anthology-tab .swiper-slide").toArray().map(item => {
-      const text = $(item).text().replace(/\d*$/, "")
-      return text.trim()
-    })
-    const videos = $(".anthology-list .anthology-list-box").toArray().map(item => {
-      return $(item).find("li").toArray().map(subItem=> {
-        const id = $(subItem).find("a").attr("href") ?? ""
-        const text = $(subItem).text()
-        return { id, text }
-      })
-    })
-    const playlist = tabs.map((tab, index) => {
-      const value = videos[index]
-      return <IPlaylist>{
-        title: tab,
-        videos: value,
-      }
-    })
-    return <IMovie>{ desc, playlist }
-  }
-  async getSearch() {
-    const wd = env.get<string>("keyword")
-    const page = env.get<string>("page")
-    const url = `${env.baseUrl}/vodsearch/${wd}----------${page}---.html`
-    const $ = kitty.load(await req(url))
-    return $(".box-width .row .vod-detail").toArray().map(item=> {
-      const img = $(item).find("img.lazy")
-      const cover = env.baseUrl + img.attr('data-src')
-      const title = img.attr('alt') ?? ""
-      const remark = $($(item).find(".slide-info-remarks").toArray()[0]).text().trim()
-      const id = $(item).find('a').attr('href') ?? ""
-      return { id, cover, title, remark }
-    })
-  }
-}
+          {
+            "text": "电影",
+            "id": "1"
+          },
+          {
+            "text": "电视剧",
+            "id": "2"
+          },
+          {
+            "text": "综艺",
+            "id": "3"
+          },
+          {
+            "text": "动漫",
+            "id": "4"
+          },
+          {
+            "text": "短剧",
+            "id": "57"
+          },
+                "home": "const cate=env.get(\"category\");const page=env.get(\"page\");if(cate==\"/\"){const $=utils_1.kitty.load(await(0,utils_1.req)(env.baseUrl));const cards=$(\".conch-ctwrap .container\").toArray().map(item=>{const _title=$(item).find(\".hl-rb-title\").toArray();if(!_title.length)return null;const title=$(_title[0]).text().trim();const isCard=$(item).find(\".hl-vod-list\").hasClass(\"swiper-wrapper\");const list=$(item).find(\".hl-row-box .hl-list-wrap .hl-list-item\").toArray();const table=list.map(subItem=>{const a=$(subItem).find(\"a\");const id=a?.attr(\"href\")??\"\";const cover=a?.attr(\"data-original\")??\"\";const title=a?.attr(\"title\")??\"\";const remark=a?.find(\".remarks\")?.text().trim();return{id,cover,title,remark}});if(!table.length)return null;return{type:isCard?\"card\":\"list\",title,videos:table}}).filter(item=>!!item);return{type:\"complex\",data:[{type:\"markdown\",extra:{markdown:`\n> 欢迎使用小猫影视(${utils_1.kitty.VERSION})\n> 该源仅做测试使用，不可用于其他用途\n> 飞机交流群: https://t.me/catmovie1145\n> 小猫其他指南: https://xmpro.netlify.app\n`}},...cards]}}const url=`${env.baseUrl}/index.php/vod/type/id/${cate}/page/${page}.html`;const $=utils_1.kitty.load(await(0,utils_1.req)(url));return $(\".hl-vod-list li\").toArray().map(item=>{const a=$(item).find(\"a\");const id=a.attr(\"href\")??\"\";const cover=a.attr(\"data-original\")??\"\";const title=a.attr(\"title\")??\"\";const remark=$(item).find(\".hl-lc-1.remarks\").text()??\"\";return{id,title,cover,remark}})",
+        "detail": "const id=env.get(\"movieId\");const url=`${env.baseUrl}${id}`;const $=utils_1.kitty.load(await(0,utils_1.req)(url));let desc=$(\".hl-col-xs-12.blurb\").text().trim().replace(\"\\u7B80\\u4ECB\\uFF1A\",\"\");if(desc==\"\\u6682\\u65E0\\u7B80\\u4ECB\")desc=\"\";const tabs=$(\".hl-plays-from a\").toArray().map(item=>{return $(item).text().trim()});const _videos=$(\".hl-tabs-box\").toArray().map(item=>{return $(item).find(\"li a\").toArray().map(item=>{const id=$(item).attr(\"href\")??\"\";const text=$(item).text()??\"\";return{id,text}})});const playlist=tabs.map((title,index)=>{const videos=_videos[index];return{title,videos}});return{desc,playlist}",
+        "search": "const wd=env.get(\"keyword\");const page=env.get(\"page\");const url=`${env.baseUrl}/index.php/vod/search/page/${page}/wd/${wd}.html`;const $=utils_1.kitty.load(await(0,utils_1.req)(url));return $(\".hl-one-list li\").toArray().map(item=>{const a=$(item).find(\"a\");const id=a.attr(\"href\")??\"\";const cover=a.attr(\"data-original\")??\"\";const title=a.attr(\"title\")??\"\";return{id,cover,title,remark:\"\"}})",
+        "parseIframe": "const iframe=env.get(\"iframe\");const html=await(0,utils_1.req)(`${env.baseUrl}${iframe}`);const $=utils_1.kitty.load(html);const script=$(\"script\").toArray().filter(item=>{const text=$(item).text().trim();if(text.startsWith(\"var player_aaaa\"))return true})[0];let code=$(script).text().trim().replace(\"var player_aaaa=\",\"\");code=`(${code})`;const unsafeObj=eval(code);if(unsafeObj.encrypt==\"1\"){unsafeObj.url=unescape(unsafeObj.url)}else if(unsafeObj.encrypt==\"2\"){unsafeObj.url=unescape(atob(unsafeObj.url))}return unsafeObj.url"
 
-const env = createTestEnv("https://www.ysxq.cc")
-const call = new Ysxqcc();
-(async () => {
-  const cates = await call.getCategory()
-  env.set("category", cates[0].id)
-  env.set("page", 2)
-  const home = await call.getHome()
-  env.set("keyword", "我能")
-  env.set("page", 1)
-  const search = await call.getSearch()
-  if (!Array.isArray(home)) return
-  env.set("movieId", "/voddetail/150314.html" /*search[0].id*/)
-  const detail = await call.getDetail()
-  debugger
-})()
+      },
+      // ========== 模板配置 (可选) ==========
+      //"template": "template_id", // 使用预定义的模板 ID(目前只有t4)
+      // ========== 视频嗅探配置 (可选) ==========
+      // 当 parseIframe 未实现时自动启用
+      //"sniffer": {
+        //"mode": 0, // 嗅探模式: 0=返回第一个URL, 1=返回所有URL
+        //"timeout": 10000, // 超时时间(毫秒)
+       // "customRegex": "", // 自定义正则表达式(可选)
+       // "exclude": "", // 排除规则(可选)
+        //"script": "", // 页面加载后执行的JS脚本(可选)
+        //"initScript": "" // 页面初始化时执行的JS脚本(可选)
+      //}
+    }
+  }
+]
+
